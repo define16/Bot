@@ -1,89 +1,73 @@
-import requests
+import time
 from bs4 import BeautifulSoup
-import pandas as pd
 import feedparser
-import requests
-from goose3 import Goose
-from goose3.text import StopWordsKorean
+
+from Base import NewspaperDelivery
 
 
-# RSS 와 홈페이지에서 파싱하는것을  구별해서 개발
-def get_response_page(res: requests.Session(), url):
-    try:
-        response = res.get(url)
-        return response.content.decode('utf-8')
-    except:
-        return None
-
-
-def rss(res: requests.Session()):
-    rss_url = 'http://myhome.chosun.com/rss/www_section_rss.xml'
-    response = get_response_page(res, rss_url)
-    html = response.text
-    data = feedparser.parse(html)
-    for entries in data.entries:
-        for link in entries.links:
-            new_paper = get_response_page(res, link.href)
-            # 기사 원문
-            """
-            <div class="par"> 
-            """
-            soup = BeautifulSoup(new_paper, 'html.parser')
-            print(soup)
-            all_item = soup.find_all("item")
-            print(all_item)
-            break  # Test 용
-        break  # Test 용
-
-
-
-# 뉴스 기사 모여있는 page
-def paper_route(res: requests.Session()):
-    main_page_url = 'https://news.chosun.com/svc/list_in/list.html?catid={}'
-    kinds = dict(
-        politics='21'  # 정치
-    )
-    body = get_response_page(res, main_page_url.format(kinds.get('politics')))
-    soup = BeautifulSoup(body, 'html.parser')
-    all_dl = soup.find('div', {'class': 'list_content'})
-    all_news = all_dl.find_all('a')  # 뉴스 기사 url 수집
-    for news in all_news:
-        'https://news.chosun.com/site/data/html_dir/2020/08/15/2020081500076.html'
-        if 'news.chosun.com/site/data/html_dir/' in news.get('href'):
-            url = 'https:' + news.get('href')
-            news_paper = get_response_page(res, url)
-            print(get_title(news_paper))
-            print(get_news_create_date(news_paper))
-            print(get_body(news_paper))
+class ChosunHandler(NewspaperDelivery):
+    def rss(self):
+        rss_url = 'http://myhome.chosun.com/rss/www_section_rss.xml'
+        response = self.get_response_page(rss_url)
+        html = response.text
+        data = feedparser.parse(html)
+        for entries in data.entries:
+            for link in entries.links:
+                new_paper = self.get_response_page(link.href)
+                # 기사 원문
+                """
+                <div class="par"> 
+                """
+                soup = BeautifulSoup(new_paper, 'html.parser')
+                all_item = soup.find_all("item")
+                print(soup)
+                print(all_item)
+                break  # Test 용
             break  # Test 용
 
+    # 뉴스 기사 모여있는 page
+    def paper_route(self):
+        flag = True
+        page = 1
+        main_page_url = 'https://news.chosun.com/svc/list_in/list.html?catid={}&pn={}'
+        kinds = dict(
+            politics='21'  # 정치
+        )
+        while flag:
+            body = self.get_response_page(main_page_url.format(kinds.get('politics'), page))
+            html = BeautifulSoup(body, 'html.parser')
+            all_dl = html.find('div', {'class': 'list_content'})
+            all_news = all_dl.find_all('a')  # 뉴스 기사 url 수집
+            for news in all_news:
+                # 신문 본문 페이지 URL
+                if 'news.chosun.com/site/data/html_dir/' in news.get('href'):
+                    url = 'https:' + news.get('href')
+                    news_paper = self.get_response_page(url)
+                    news_paper_html = BeautifulSoup(news_paper, 'html.parser')
+                    title = self.get_title(news_paper_html)
+                    news_date = self.get_date(news_paper_html)
+                    body = self.get_body(news_paper_html)
+                    print(title)
+                    print(news_date)
+                    print(body)
+                    # Queue로 전달 후 저장
+                else:
+                    pass
 
-# 뉴스 제목
-def get_title(news_paper: str):
-    soup = BeautifulSoup(news_paper, 'html.parser')
-    return soup.find('h1', {'id':'news_title_text_id'}).text
+            if not all_news:
+                flag = False
 
+            page += 1
+            time.sleep(1)
 
-# 뉴스 작성일자
-def get_news_create_date(news_paper: str):
-    soup = BeautifulSoup(news_paper, 'html.parser')
-    return soup.find('div', {'class':'news_date'}).text
+    # 뉴스 제목
+    def get_title(self, html: BeautifulSoup):
+        return html.find('h1', {'id': 'news_title_text_id'}).text
 
+    # 뉴스 작성일자
+    def get_date(self, html: BeautifulSoup):
+        return html.find('div', {'class': 'news_date'}).text
 
-# 뉴스 본문
-def get_body(news_paper):
-    soup = BeautifulSoup(news_paper, 'html.parser')
-    return soup.find('div', {'class': 'par'}).text
-
-
-
-
-
-def main():
-    with requests.Session() as res:
-        # rss(res)
-        paper_route(res)
-
-
-if __name__ == "__main__":
-    main()
+    # 뉴스 본문
+    def get_body(self, html: BeautifulSoup):
+        return html.find('div', {'class': 'par'}).text
