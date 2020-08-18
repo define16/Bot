@@ -50,7 +50,7 @@ class ChosunHandler(NewspaperDelivery):
                     print(title)
                     print(news_date)
                     print(body)
-                    # Queue로 전달 후 저장
+                    # DB 저장
                 else:
                     pass
 
