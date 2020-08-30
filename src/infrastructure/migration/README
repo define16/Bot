@@ -1,0 +1,5 @@
+Generic single-database configuration.
+## Migration
+~~~
+alembic -x username=<사용자명> -x password=<비밀번호> -x host=<host name or host ip> -x port=<mysql port 번호> -x database=<db명> upgrade head
+~~~
