@@ -6,6 +6,10 @@ from Base import NewspaperDelivery
 
 
 class ChosunHandler(NewspaperDelivery):
+    def __init__(self):
+        self.news_list = []
+        super().__init__()
+
     def rss(self):
         rss_url = 'http://myhome.chosun.com/rss/www_section_rss.xml'
         response = self.get_response_page(rss_url)
@@ -39,7 +43,7 @@ class ChosunHandler(NewspaperDelivery):
             all_dl = html.find('div', {'class': 'list_content'})
             all_news = all_dl.find_all('a')  # 뉴스 기사 url 수집
             for news in all_news:
-                # 신문 본문 페이지 URL
+                # 신문 본문 페이지 URL TODO 분리할 예정
                 if 'news.chosun.com/site/data/html_dir/' in news.get('href'):
                     url = 'https:' + news.get('href')
                     news_paper = self.get_response_page(url)
